@@ -4,25 +4,26 @@ pragma solidity >=0.8.23;
 /// @title Perp Engine interface
 /// @notice Manage openning positions
 interface IPerp {
+    // 资金费率与未平仓量
     /// @notice Stores the market metrics of a market, including the funding rate and open interest.
     struct FundingRate {
-        int128 cumulativeFunding18D;
+        int128 cumulativeFunding18D; // 累计资金费率（价差？？？）
         int128 openInterest;
     }
 
     /// @notice Stores openning position of an account of a market.
     struct Balance {
-        int128 size;
-        int128 quoteBalance;
-        int128 lastFunding;
+        int128 size; // 合约数量
+        int128 quoteBalance; // 开仓价值（金额） quotePrice = quoteBalance / size
+        int128 lastFunding; // 上一次最新操作的累计资金费率价差，这个作用是？
     }
 
     /// @notice Information of the account to modify
     struct AccountDelta {
         uint8 productIndex;
         address account;
-        int128 amount;
-        int128 quoteAmount;
+        int128 amount; // 合约数量
+        int128 quoteAmount; // 合约金额
     }
 
     /// @notice Modifies the balance of an account of a market

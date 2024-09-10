@@ -14,8 +14,8 @@ import {Errors} from "./lib/Errors.sol";
 contract Perp is IPerp, Initializable, OwnableUpgradeable {
     Access public access;
 
-    mapping(address account => mapping(uint8 productId => Balance balance)) public balance;
-    mapping(uint8 productId => FundingRate marketMetrics) public fundingRate;
+    mapping(address account => mapping(uint8 productId => Balance balance)) public balance; //用户对应token的开仓量
+    mapping(uint8 productId => FundingRate marketMetrics) public fundingRate; //单个产品对应的资金费率的累计
 
     function initialize(address _access) public initializer {
         if (_access == address(0)) {
@@ -58,7 +58,8 @@ contract Perp is IPerp, Initializable, OwnableUpgradeable {
     /// @inheritdoc IPerp
     function updateFundingRate(uint8 _productIndex, int128 priceDiff) external onlySequencer returns (int128) {
         FundingRate memory _fundingRate = fundingRate[_productIndex];
-        _fundingRate.cumulativeFunding18D = _fundingRate.cumulativeFunding18D + priceDiff;
+        // priceDiff 可能为正数，也可能是负数
+        _fundingRate.cumulativeFunding18D = _fundingRate.cumulativeFunding18D + priceDiff; // 资金费率对应的价差累计。
         fundingRate[_productIndex] = _fundingRate;
         return _fundingRate.cumulativeFunding18D;
     }
@@ -71,7 +72,7 @@ contract Perp is IPerp, Initializable, OwnableUpgradeable {
 
     /// @inheritdoc IPerp
     function getFundingRate(uint8 _productIndex) external view returns (FundingRate memory) {
-        return fundingRate[_productIndex];
+        return fundingRate[_productIndex]; //每个产品对应的资金费率
     }
 
     /**
@@ -84,15 +85,15 @@ contract Perp is IPerp, Initializable, OwnableUpgradeable {
     function _updateAccountBalance(
         FundingRate memory _fundingRate,
         Balance memory _balance,
-        int128 _amount,
-        int128 _quote
+        int128 _amount, //合约数量
+        int128 _quote //合约开仓价值（金额）？
     ) internal pure {
         _fundingRate.openInterest -= (_balance.size > 0) ? _balance.size : int128(0);
-        _balance.size = _amount;
+        _balance.size = _amount; //合约数量
         _balance.quoteBalance = _quote;
 
-        _balance.lastFunding = _fundingRate.cumulativeFunding18D;
-        _fundingRate.openInterest += (_balance.size > 0) ? _balance.size : int128(0);
+        _balance.lastFunding = _fundingRate.cumulativeFunding18D; // 累计的资金费率价差？？？
+        _fundingRate.openInterest += (_balance.size > 0) ? _balance.size : int128(0); //更新市场整体的开仓量
     }
 
     /*//////////////////////////////////////////////////////////////////////////

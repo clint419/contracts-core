@@ -44,23 +44,17 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
 
     EnumerableSet.AddressSet private supportedTokens;
     mapping(address account => mapping(address signer => bool isAuthorized)) private _signingWallets;
-    mapping(uint256 requestId => WithdrawalInfo info) private _withdrawalInfo; // deprecated
     mapping(address account => mapping(uint64 signingWalletsNonce => bool used)) public usedNonces;
 
-    uint256 private _withdrawalRequestIDCounter; // deprecated
-    uint256 private _forceWithdrawalGracePeriodSecond; // deprecated
-    uint256 private _lastResetBlockNumber; // deprecated
     int256 private _sequencerFee;
     EnumerableSet.AddressSet private _userWallets; // deprecated
-    uint256 public lastFundingRateUpdate;
+    uint256 public lastFundingRateUpdate; // 最后一次更新资金费率的nonce
     uint32 public executedTransactionCounter;
     address public feeRecipientAddress;
-    bool private _isTwoPhaseWithdrawEnabled; // deprecated
     bool public canDeposit;
     bool public canWithdraw;
     bool public pauseBatchProcess;
     mapping(address account => mapping(uint64 nonce => bool isSuccess)) public isWithdrawSuccess;
-    mapping(address account => bool isRequesting) private _isRequestingTwoPhaseWithdraw; // deprecated
 
     bytes32 public constant REGISTER_TYPEHASH = keccak256("Register(address key,string message,uint64 nonce)");
     bytes32 public constant SIGN_KEY_TYPEHASH = keccak256("SignKey(address account)");
@@ -136,6 +130,7 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
 
     ///@inheritdoc IExchange
     function deposit(address tokenAddress, uint128 amount) external supportedToken(tokenAddress) {
+        //        deposit(msg.sender,tokenAddress,amount);
         if (!canDeposit) {
             revert Errors.Exchange_DisabledDeposit();
         }
@@ -156,6 +151,7 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
         if (amount == 0) revert Errors.Exchange_ZeroAmount();
         IERC20Extend token = IERC20Extend(tokenAddress);
         uint256 amountToTransfer = _convertToRawAmount(tokenAddress, amount);
+        // 充值到当前合约地址上，查询数量，可以根据token对应的合约提供的方法得到。
         token.safeTransferFrom(msg.sender, address(this), amountToTransfer);
         clearingService.deposit(recipient, amount, tokenAddress, spotEngine);
         int256 currentBalance = spotEngine.getBalance(tokenAddress, recipient);
@@ -182,7 +178,7 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
     }
 
     //// @inheritdoc IExchange
-    function depositWithAuthorization(
+    function depositWithAuthorization( // 带有认证形式的充值，类似permit2,eip2612
         address tokenAddress,
         address depositor,
         uint128 amount,
@@ -217,6 +213,7 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
         emit DepositInsuranceFund(amount, insuranceFund);
     }
 
+    // 提取保险基金
     /// @inheritdoc IExchange
     function withdrawInsuranceFund(uint256 amount) external onlyGeneralAdmin {
         address token = book.getCollateralToken();
@@ -231,7 +228,7 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
 
     /// @inheritdoc IExchange
     function claimTradingFees() external onlyGeneralAdmin {
-        address token = book.getCollateralToken();
+        address token = book.getCollateralToken(); // 手续费与保证金的是统一token
         int256 totalFee = book.claimTradingFees();
         IERC20Extend tokenExtend = IERC20Extend(token);
         uint256 amountToTransfer = _convertToRawAmount(token, uint128(uint256(totalFee)));
@@ -241,7 +238,7 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
 
     /// @inheritdoc IExchange
     function claimSequencerFees() external onlyGeneralAdmin {
-        address token = book.getCollateralToken();
+        address token = book.getCollateralToken(); // 续费与保证金的是统一token
         int256 totalFee = _sequencerFee;
         _sequencerFee = 0;
         totalFee += book.claimSequencerFees();
@@ -260,7 +257,7 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
         uint256 length = operations.length;
         for (uint128 i = 0; i < length; ++i) {
             bytes calldata operation = operations[i];
-            _handleOperation(operation);
+            _handleOperation(operation); //处理数据。
         }
     }
 
@@ -413,6 +410,7 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
 
             book.matchOrders(maker, taker, digest, maker.order.productIndex, takerSequencerFee, matchFee);
         } else if (operationType == OperationType.MatchOrders) {
+            //永续订单匹配
             LibOrder.SignedOrder memory maker;
             LibOrder.SignedOrder memory taker;
             IOrderBook.Fee memory matchFee;
@@ -460,6 +458,8 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
 
             book.matchOrders(maker, taker, digest, maker.order.productIndex, takerSequencerFee, matchFee);
         } else if (operationType == OperationType.UpdateFundingRate) {
+            //当前操作是更新资金费率
+            // 更新资金费率
             UpdateFundingRate memory txs = abi.decode(data[5:], (UpdateFundingRate));
             if (lastFundingRateUpdate >= txs.lastFundingRateUpdateSequenceNumber) {
                 revert Errors.Exchange_InvalidFundingRateSequenceNumber(
@@ -733,7 +733,6 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
         Perp(address(perpEngine)).resetFundingRate(productIds);
         executedTransactionCounter = 0;
         lastFundingRateUpdate = 0;
-        _lastResetBlockNumber = block.number;
     }
 
     function getUserWallets() external view returns (address[] memory) {
@@ -743,9 +742,5 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
             userWalletList[index] = _userWallets.at(index);
         }
         return userWalletList;
-    }
-
-    function lastResetBlockNumber() external view returns (uint256) {
-        return _lastResetBlockNumber;
     }
 }

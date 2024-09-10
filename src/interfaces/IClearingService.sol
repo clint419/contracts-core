@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import {ISpot} from "./ISpot.sol";
 
 /// @title Clearing service interface
-/// @notice Manage insurance fund and spot balance
+/// @notice Manage insurance fund and spot balance // 主要是统计与汇总功能，并没有实际参与token的转移
 interface IClearingService {
     /// @dev Emitted when liquidation fee is collected
     event CollectLiquidationFee(address indexed account, uint64 indexed nonce, uint256 amount, uint256 insuranceFund);

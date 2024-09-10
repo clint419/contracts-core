@@ -32,10 +32,9 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
     mapping(bytes32 orderHash => uint128 filledAmount) public filled;
     mapping(address account => mapping(uint64 nonce => bool used)) public isNonceUsed;
 
-    FeeCollection public feeCollection;
-    mapping(uint8 productId => int256 fee) private _sequencerFee; //deprecated
-    address private collateralToken;
-    int256 private totalSequencerFee;
+    FeeCollection public feeCollection; // 手续费汇总
+    address private collateralToken; // 抵押token
+    int256 private totalSequencerFee; // 排序器的手续费
 
     function initialize(
         address _clearingService,
@@ -70,7 +69,7 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
 
     /// @inheritdoc IOrderBook
     // solhint-disable code-complexity
-    function matchOrders(
+    function matchOrders( //只提交匹配成功的订单。即链上与链下状态应该要保持一致！！！。队列是在链下完成。
         LibOrder.SignedOrder calldata maker,
         LibOrder.SignedOrder calldata taker,
         OrderHash calldata digest,
@@ -88,6 +87,7 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
             revert Errors.Orderbook_ExceededMaxSequencerFee();
         }
 
+        // 填充数量（合约份数）
         uint128 fillAmount =
             MathHelper.min(maker.order.size - filled[digest.maker], taker.order.size - filled[digest.taker]);
         _verifyUsedNonce(maker.order.sender, maker.order.nonce);
@@ -98,6 +98,7 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
 
         Delta memory takerDelta;
         Delta memory makerDelta;
+        // 根据吃单者的方向，做不同的策略。
         if (taker.order.orderSide == OrderSide.SELL) {
             takerDelta.productAmount = -int128(fillAmount);
             makerDelta.productAmount = int128(fillAmount);
@@ -117,6 +118,7 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
         }
 
         if (taker.isLiquidation) {
+            // 清算
             uint128 liquidationFee = matchFee.liquidationPenalty;
             uint128 maxLiquidationFee =
                 uint128(MathHelper.abs(takerDelta.quoteAmount)).calculatePercentage(MAX_LIQUIDATION_FEE_RATE);
@@ -129,6 +131,7 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
             clearingService.collectLiquidationFee(taker.order.sender, taker.order.nonce, liquidationFee);
         }
 
+        // 报价
         makerDelta.quoteAmount = makerDelta.quoteAmount - matchFee.maker;
         takerDelta.quoteAmount = takerDelta.quoteAmount - matchFee.taker;
         _updateFeeCollection(matchFee);
@@ -147,6 +150,7 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
         if (taker.order.size == filled[digest.taker]) {
             isNonceUsed[taker.order.sender][taker.order.nonce] = true;
         }
+        // settle maker
         (makerDelta.quoteAmount, makerDelta.productAmount) =
             _settleBalance(productIndex, maker.order.sender, makerDelta.productAmount, makerDelta.quoteAmount, price);
 
@@ -157,6 +161,8 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
         {
             IPerp.AccountDelta[] memory productDeltas = new IPerp.AccountDelta[](2);
 
+            // 0: maker info
+            // 1: taker info
             productDeltas[0] =
                 _createAccountDelta(productIndex, maker.order.sender, makerDelta.productAmount, makerDelta.quoteAmount);
             productDeltas[1] =
@@ -225,7 +231,7 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
         feeCollection.perpFeeCollection += fee.maker + fee.taker - int128(fee.referralRebate);
     }
 
-    function _settleBalance(
+    function _settleBalance( //结算
         uint8 _productIndex,
         address _account,
         int128 _matchSize,
@@ -236,8 +242,10 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
         IPerp.Balance memory balance = perpEngine.getBalance(_account, _productIndex);
         IPerp.FundingRate memory fundingRate = perpEngine.getFundingRate(_productIndex);
 
-        //pay funding first
-        int128 funding = (fundingRate.cumulativeFunding18D - balance.lastFunding).mul18D(balance.size);
+        //pay funding first 计算资金费率，资金费率 - 当前的持仓对应的价格累计
+        // funding：资金费用 = 资金费率 * 仓位价值 = 资金费率 * 标价价格 * 合约数量 = （资金费率 * 标价价格） * 合约数量
+        //（资金费率 * 标价价格）： 单份合约（资金费率）价差累计偏离值。
+        int128 funding = (fundingRate.cumulativeFunding18D - balance.lastFunding).mul18D(balance.size); //
         int128 newQuote = _quote + balance.quoteBalance - funding;
         int128 newSize = balance.size + _matchSize;
         int128 amountToSettle;
@@ -276,8 +284,8 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
     function _createAccountDelta(
         uint8 productIndex,
         address account,
-        int128 amount,
-        int128 quoteAmount
+        int128 amount,//数量
+        int128 quoteAmount // 金额
     ) internal pure returns (IPerp.AccountDelta memory) {
         return
             IPerp.AccountDelta({productIndex: productIndex, account: account, amount: amount, quoteAmount: quoteAmount});

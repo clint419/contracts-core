@@ -13,14 +13,14 @@ interface IOrderBook {
 
     /// @notice Hash of maker and taker order
     struct OrderHash {
-        bytes32 maker;
-        bytes32 taker;
+        bytes32 maker; // maker order hash
+        bytes32 taker; // taker order hash
     }
 
     /// @notice Quote and base amount of the order
     struct Delta {
-        int128 quoteAmount;
-        int128 productAmount;
+        int128 quoteAmount; //(价值)金额
+        int128 productAmount; //产品数量
     }
 
     /// @notice Fee of the order

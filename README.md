@@ -59,3 +59,22 @@ The primary license for BSX Exchange contracts is the MIT License, see [`LICENSE
 exceptions:
 
 - Many files in `test/` remain unlicensed (as indicated in their SPDX headers).
+
+## 分析学习
+
+1. 每个合约，管理不同的功能，合约之间存在组合依赖关系。
+2. 合约需要单独部署，但是repo并没有提供部署脚本。
+3. 单元测试通过foundry完成的。
+4. package.json 存在没有用的依赖，
+5. 权限设计：虽然openzeppelin已经有权限香港的库了，但是是基础的，需要继承过来，进一步设计符合自己项目场景的权限。
+6. 编码原则：参数校验、访问级别、合约可升级、漏洞防范等。
+7. 参数的校验，要根据接口的开放成都决定，内部接口，就可以减少校验，但是任何人都可以访问的接口方法，就需要权量校验。特别
+   是充值接口。
+
+## 业务分析
+
+1、充币：2、提币：是否可以开放一个任何人都可以提币的接口？？？3、匹配交易：为什么现货与永续是合并的接口？？？！！！
+
+## 资料
+
+https://www.bsx.exchange/

@@ -8,8 +8,8 @@ import {OrderSide} from "../share/Enums.sol";
 library LibOrder {
     struct Order {
         address sender;
-        uint128 size;
-        uint128 price;
+        uint128 size; // 合约数量
+        uint128 price; //价格
         uint64 nonce;
         uint8 productIndex;
         OrderSide orderSide;
@@ -27,3 +27,5 @@ library LibOrder {
         SignedOrder taker;
     }
 }
+
+// 结构体，放在单独的一个lib里面。

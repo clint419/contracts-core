@@ -20,7 +20,7 @@ interface ISpot {
     struct AccountDelta {
         address token;
         address account;
-        int256 amount;
+        int256 amount;// 数量
     }
 
     /// @notice Modifies the balance of an account.

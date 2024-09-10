@@ -14,7 +14,7 @@ import {Errors} from "./lib/Errors.sol";
 /// @dev This contract is upgradeable
 contract ClearingService is IClearingService, Initializable, OwnableUpgradeable {
     Access public access;
-    uint256 private insuranceFund18D;
+    uint256 private insuranceFund18D; // 当前系统的保险基金
 
     function initialize(address _access) public initializer {
         if (_access == address(0)) {
@@ -50,6 +50,7 @@ contract ClearingService is IClearingService, Initializable, OwnableUpgradeable 
         spotEngine.setTotalBalance(token, amount, false);
     }
 
+    // 挑战资金费率，只有管理员可以。
     /// @inheritdoc IClearingService
     function depositInsuranceFund(uint256 amount) external onlySequencer {
         if (amount == 0) {
@@ -64,6 +65,7 @@ contract ClearingService is IClearingService, Initializable, OwnableUpgradeable 
         emit CollectLiquidationFee(account, nonce, amount, insuranceFund18D);
     }
 
+    // 提取保险基金紧急情况
     /// @inheritdoc IClearingService
     function withdrawInsuranceFundEmergency(uint256 amount) external onlySequencer {
         if (amount == 0) {

@@ -87,18 +87,9 @@ interface IExchange {
     enum OperationType {
         MatchLiquidationOrders,
         MatchOrders,
-        _DepositInsuranceFund, // deprecated
         UpdateFundingRate,
-        _AssertOpenInterest, // deprecated
         CoverLossByInsuranceFund,
-        _UpdateFeeRate, // deprecated
-        _UpdateLiquidationFeeRate, // deprecated
-        _ClaimFee, // deprecated
-        _WithdrawInsuranceFundEmergency, // deprecated
-        _SetMarketMaker, // deprecated
-        _UpdateSequencerFee, // deprecated
         AddSigningWallet,
-        _ClaimSequencerFees, // deprecated
         Withdraw,
         Invalid
     }
@@ -129,7 +120,7 @@ interface IExchange {
     struct UpdateFundingRate {
         uint8 productIndex;
         int128 priceDiff;
-        uint128 lastFundingRateUpdateSequenceNumber;
+        uint128 lastFundingRateUpdateSequenceNumber; // 逐渐递增
     }
 
     /// @notice decprecated

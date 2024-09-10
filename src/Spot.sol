@@ -11,7 +11,11 @@ import {Errors} from "./lib/Errors.sol";
 /// @title Spot contract
 /// @notice Manage the token balance states
 /// @dev This contract is upgradeable
-contract Spot is ISpot, Initializable, OwnableUpgradeable {
+contract Spot is
+    ISpot,
+    Initializable,
+    OwnableUpgradeable // 用于计算资金费率与当前交易所现有token市场的情况。
+{
     mapping(address account => mapping(address token => Balance balance)) public balance;
     mapping(address token => uint256 totalBalance) public totalBalancePerToken;
     Access public access;
