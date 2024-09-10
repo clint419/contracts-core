@@ -18,7 +18,7 @@ library LibOrder {
     struct SignedOrder {
         Order order;
         bytes signature;
-        address signer;
+        address signer;// 签名
         bool isLiquidation; // true: liquidation order, false: normal order
     }
 

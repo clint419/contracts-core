@@ -7,7 +7,7 @@ interface IPerp {
     // 资金费率与未平仓量
     /// @notice Stores the market metrics of a market, including the funding rate and open interest.
     struct FundingRate {
-        int128 cumulativeFunding18D; // 累计资金费率（价差？？？）
+        int128 cumulativeFunding18D; // 累计资金费率（累加资金费价差），类似a(n) = S(n) - S(n-1)概念。
         int128 openInterest;
     }
 

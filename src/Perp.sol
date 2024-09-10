@@ -38,6 +38,7 @@ contract Perp is IPerp, Initializable, OwnableUpgradeable {
         _;
     }
 
+    // 修改持有仓位
     /// @inheritdoc IPerp
     function modifyAccount(IPerp.AccountDelta[] calldata _accountDeltas) external onlySequencer {
         uint64 length = uint64(_accountDeltas.length);

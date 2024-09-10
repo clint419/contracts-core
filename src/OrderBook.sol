@@ -168,6 +168,7 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
             productDeltas[1] =
                 _createAccountDelta(productIndex, taker.order.sender, takerDelta.productAmount, takerDelta.quoteAmount);
 
+            // 仓位调整
             _modifyAccounts(productDeltas);
         }
         bool isLiquidation = taker.isLiquidation;
@@ -245,6 +246,7 @@ contract OrderBook is IOrderBook, Initializable, OwnableUpgradeable {
         //pay funding first 计算资金费率，资金费率 - 当前的持仓对应的价格累计
         // funding：资金费用 = 资金费率 * 仓位价值 = 资金费率 * 标价价格 * 合约数量 = （资金费率 * 标价价格） * 合约数量
         //（资金费率 * 标价价格）： 单份合约（资金费率）价差累计偏离值。
+        // 例如：资金费率是8小时调整一次，已经经过5次调整。分别是8、-2、-3、6、3，
         int128 funding = (fundingRate.cumulativeFunding18D - balance.lastFunding).mul18D(balance.size); //
         int128 newQuote = _quote + balance.quoteBalance - funding;
         int128 newSize = balance.size + _matchSize;

@@ -170,7 +170,7 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
         if (rawAmount == 0) revert Errors.Exchange_ZeroAmount();
         IERC20Extend token = IERC20Extend(tokenAddress);
         token.safeTransferFrom(msg.sender, address(this), rawAmount);
-
+        // 支持ERC20 token
         uint256 scaledAmount = (rawAmount * 10 ** 18) / 10 ** token.decimals();
         clearingService.deposit(recipient, scaledAmount, tokenAddress, spotEngine);
         int256 currentBalance = spotEngine.getBalance(tokenAddress, recipient);
@@ -434,6 +434,7 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
                 revert Errors.Exchange_LiquidatedOrder(transactionId);
             }
 
+            // 验证签名
             _verifySignature(taker.signer, digest.taker, taker.signature);
             if (!isSigningWallet(taker.order.sender, taker.signer)) {
                 revert Errors.Exchange_UnauthorizedSigner(taker.order.sender, taker.signer);
@@ -493,10 +494,12 @@ contract Exchange is IExchange, Initializable, EIP712Upgradeable, OwnableUpgrade
                 isWithdrawSuccess[txs.sender][txs.nonce] = false;
                 emit WithdrawRejected(txs.sender, txs.nonce, txs.amount, currentBalance);
             } else {
+                // 提款
                 clearingService.withdraw(txs.sender, txs.amount, txs.token, spotEngine);
                 IERC20Extend product = IERC20Extend(txs.token);
                 uint256 amountToTransfer = _convertToRawAmount(txs.token, txs.amount - txs.withdrawalSequencerFee);
                 _sequencerFee += int256(int128(txs.withdrawalSequencerFee));
+                // 从当前合约转出。
                 product.safeTransfer(txs.sender, amountToTransfer);
                 int256 afterBalance = balanceOf(txs.sender, txs.token);
                 isWithdrawSuccess[txs.sender][txs.nonce] = true;
